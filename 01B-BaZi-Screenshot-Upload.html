@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#6f1717">
+  <title>BaZi Screenshot Reader</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --red: #761c1c;
+      --red-dark: #4f1010;
+      --gold: #c99a32;
+      --cream: #fffaf0;
+      --ink: #2e2420;
+      --muted: #73665f;
+      --line: #dcc9ae;
+      --danger: #a51f1f;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100svh;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(212, 168, 75, .25), transparent 35%),
+        linear-gradient(145deg, #5c1111, #8c2828 52%, #4b0d0d);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .card {
+      width: min(720px, 100%);
+      padding: clamp(20px, 4vw, 36px);
+      border: 1px solid rgba(255,255,255,.45);
+      border-radius: 24px;
+      background: var(--cream);
+      box-shadow: 0 24px 70px rgba(30, 0, 0, .36);
+    }
+
+    .eyebrow {
+      margin: 0 0 5px;
+      color: var(--red);
+      font-size: .82rem;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--red-dark);
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(1.75rem, 5vw, 2.65rem);
+      line-height: 1.08;
+    }
+
+    .intro {
+      margin: 10px 0 20px;
+      color: var(--muted);
+      font-size: clamp(.98rem, 2.5vw, 1.08rem);
+      line-height: 1.55;
+    }
+
+    .drop-zone {
+      position: relative;
+      min-height: 270px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      padding: 22px;
+      border: 2px dashed var(--gold);
+      border-radius: 18px;
+      background: #fffdf8;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s, transform .2s;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.dragging {
+      border-color: var(--red);
+      background: #fff5e1;
+      transform: translateY(-1px);
+    }
+
+    .drop-zone.has-image { padding: 10px; }
+
+    .empty-state strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--red-dark);
+      font-size: clamp(1.12rem, 3vw, 1.35rem);
+    }
+
+    .empty-state span {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    #preview {
+      display: none;
+      width: 100%;
+      max-height: 350px;
+      object-fit: contain;
+      border-radius: 11px;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 15px;
+    }
+
+    button,
+    .file-button {
+      min-height: 52px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 18px;
+      border: 0;
+      border-radius: 13px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .file-button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--red-dark);
+    }
+
+    #submitButton {
+      background: linear-gradient(135deg, var(--red), var(--red-dark));
+      color: #fff;
+      box-shadow: 0 9px 18px rgba(99, 18, 18, .22);
+    }
+
+    #submitButton:disabled {
+      background: #b8aea7;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    input[type="file"] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+    }
+
+    .status {
+      min-height: 24px;
+      margin: 13px 2px 0;
+      color: var(--muted);
+      font-size: .92rem;
+      text-align: center;
+    }
+
+    .status.error { color: var(--danger); font-weight: 700; }
+
+    .note {
+      margin: 14px 2px 0;
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.45;
+      text-align: center;
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 10px; align-items: start; }
+      .card { padding: 20px 15px; border-radius: 18px; }
+      .drop-zone { min-height: 230px; }
+      .actions { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <p class="eyebrow">BaZi Reader</p>
+    <h1>Upload your BaZi screenshot</h1>
+    <p class="intro">Paste, upload or take a clear screenshot. The image will be sent for extraction before opening the scoring calculator.</p>
+
+    <!--
+      Replace the action value below with your PRODUCTION n8n webhook URL.
+      Expected n8n behaviour after extraction:
+      Return HTTP 302 with a Location header such as:
+      https://davetng-crypto.github.io/bazi/01A-BaZi-Scoring-Calculator.html?ys=甲&yb=子&ms=丙&mb=寅&ds=戊&db=辰&hs=庚&hb=午
+    -->
+    <form id="uploadForm"
+          action="https://davetng.app.n8n.cloud/webhook/b22aac0c-d420-4494-893f-6ae80fbd9ab7"
+          method="post"
+          enctype="multipart/form-data">
+
+      <input type="hidden"
+             name="returnUrl"
+             value="https://davetng-crypto.github.io/bazi/01A-BaZi-Scoring-Calculator.html">
+
+      <label class="drop-zone" id="dropZone" for="screenshot">
+        <span class="empty-state" id="emptyState">
+          <strong>Paste your screenshot here</strong>
+          <span>Press Ctrl + V, drag an image here,<br>or choose a screenshot below.</span>
+        </span>
+        <img id="preview" alt="Selected BaZi screenshot preview">
+      </label>
+
+      <input id="screenshot"
+             name="screenshot"
+             type="file"
+             accept="image/png,image/jpeg,image/webp"
+             capture="environment"
+             required>
+
+      <div class="actions">
+        <label class="file-button" for="screenshot">Choose / Take Screenshot</label>
+        <button id="submitButton" type="submit" disabled>Extract BaZi</button>
+      </div>
+
+      <p class="status" id="status" role="status" aria-live="polite">No screenshot selected.</p>
+      <p class="note">Only the selected screenshot is sent to your n8n workflow.</p>
+    </form>
+  </main>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    const fileInput = document.getElementById('screenshot');
+    const dropZone = document.getElementById('dropZone');
+    const emptyState = document.getElementById('emptyState');
+    const preview = document.getElementById('preview');
+    const submitButton = document.getElementById('submitButton');
+    const status = document.getElementById('status');
+    let previewUrl = '';
+
+    function showError(message) {
+      status.textContent = message;
+      status.classList.add('error');
+    }
+
+    function setImageFile(file) {
+      if (!file || !file.type.startsWith('image/')) {
+        showError('Please select or paste an image file.');
+        return;
+      }
+
+      const allowed = ['image/png', 'image/jpeg', 'image/webp'];
+      if (!allowed.includes(file.type)) {
+        showError('Please use a PNG, JPG or WebP screenshot.');
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        showError('The screenshot must be smaller than 10 MB.');
+        return;
+      }
+
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      fileInput.files = transfer.files;
+
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = URL.createObjectURL(file);
+      preview.src = previewUrl;
+      preview.style.display = 'block';
+      emptyState.style.display = 'none';
+      dropZone.classList.add('has-image');
+      submitButton.disabled = false;
+      status.classList.remove('error');
+      status.textContent = 'Screenshot ready. Select Extract BaZi.';
+    }
+
+    fileInput.addEventListener('change', () => setImageFile(fileInput.files[0]));
+
+    document.addEventListener('paste', event => {
+      const imageItem = [...event.clipboardData.items].find(item => item.type.startsWith('image/'));
+      if (!imageItem) {
+        showError('No image was found in the clipboard.');
+        return;
+      }
+      event.preventDefault();
+      setImageFile(imageItem.getAsFile());
+    });
+
+    ['dragenter', 'dragover'].forEach(name => {
+      dropZone.addEventListener(name, event => {
+        event.preventDefault();
+        dropZone.classList.add('dragging');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(name => {
+      dropZone.addEventListener(name, event => {
+        event.preventDefault();
+        dropZone.classList.remove('dragging');
+      });
+    });
+
+    dropZone.addEventListener('drop', event => setImageFile(event.dataTransfer.files[0]));
+
+    form.addEventListener('submit', event => {
+      if (!fileInput.files.length) {
+        event.preventDefault();
+        showError('Please add a screenshot first.');
+        return;
+      }
+
+      submitButton.disabled = true;
+      submitButton.textContent = 'Extracting...';
+      status.classList.remove('error');
+      status.textContent = 'Sending screenshot to n8n. Please wait.';
+    });
+  </script>
+</body>
+</html>
